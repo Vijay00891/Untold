@@ -11,6 +11,7 @@ export interface PostEntryProps {
   content: string;
   timestamp: string;
   likeCount: number;
+  isLiked?: boolean;
   onRelate?: () => void;
   onLike?: () => void;
   onPress?: () => void;
@@ -23,6 +24,7 @@ export function PostEntry({
   content,
   timestamp,
   likeCount,
+  isLiked = false,
   onRelate,
   onLike,
   onPress,
@@ -66,8 +68,13 @@ export function PostEntry({
           onPress={onLike}
           activeOpacity={0.7}
         >
-          <Heart size={18} color="#6E6659" strokeWidth={1.5} />
-          <Text className="font-sans text-inkMuted text-sm ml-2">
+          <Heart 
+            size={18} 
+            color={isLiked ? "#B3542E" : "#6E6659"} 
+            fill={isLiked ? "#B3542E" : "transparent"} 
+            strokeWidth={1.5} 
+          />
+          <Text className={`font-sans text-sm ml-2 ${isLiked ? 'text-seal font-medium' : 'text-inkMuted'}`}>
             {likeCount}
           </Text>
         </TouchableOpacity>

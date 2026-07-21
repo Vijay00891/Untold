@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, FlatList, SafeAreaView, Text, TouchableOpacity, Image } from 'react-native';
 import { PostEntry } from '../../components/ui/PostEntry';
 import { IconButton } from '../../components/ui/IconButton';
@@ -32,6 +32,23 @@ const MOCK_POSTS = [
 
 export default function FeedScreen() {
   const router = useRouter();
+  const [posts, setPosts] = useState(MOCK_POSTS.map(post => ({ ...post, isLiked: false })));
+
+  const handleLike = (id: string) => {
+    setPosts(prev => 
+      prev.map(post => {
+        if (post.id === id) {
+          const isLiked = !post.isLiked;
+          return {
+            ...post,
+            isLiked,
+            likeCount: isLiked ? post.likeCount + 1 : post.likeCount - 1
+          };
+        }
+        return post;
+      })
+    );
+  };
 
   return (
     <SafeAreaView style={{ flex: 1 }} className="flex-1 bg-background">
@@ -43,7 +60,7 @@ export default function FeedScreen() {
             className="mr-2"
             resizeMode="cover"
           />
-          <Text style={{ fontFamily: 'Lora', fontSize: 22 }} className="font-semibold text-ink">Untold</Text>
+          <Text style={{ fontFamily: 'Lora_600SemiBold', fontSize: 22 }} className="text-ink">Untold</Text>
         </View>
         <TouchableOpacity 
           className="relative"
@@ -57,11 +74,12 @@ export default function FeedScreen() {
       </View>
       
       <FlatList
-        data={MOCK_POSTS}
+        data={posts}
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => (
           <PostEntry 
             {...item} 
+            onLike={() => handleLike(item.id)}
             onRelate={() => router.push({
               pathname: '/(tabs)/chats/[conversationId]',
               params: {

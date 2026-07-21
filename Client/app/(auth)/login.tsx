@@ -41,7 +41,7 @@ export default function LoginScreen() {
             className="mb-4 shadow-sm"
             resizeMode="cover"
           />
-          <Text style={{ fontFamily: 'Lora', fontSize: 36 }} className="font-semibold text-ink mb-2">Untold</Text>
+          <Text style={{ fontFamily: 'Lora_600SemiBold', fontSize: 36 }} className="text-ink mb-2">Untold</Text>
           <Text className="text-inkMuted font-sans text-center text-base leading-6 px-4">
             Share your experiences safely and connect with those who understand.
           </Text>
