@@ -1,0 +1,14 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html, body, #root {
+    height: 100%;
+    width: 100%;
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+    background-color: theme('colors.background');
+  }
+}
