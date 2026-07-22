@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { View, Text, SafeAreaView, TextInput, KeyboardAvoidingView, Platform, FlatList } from 'react-native';
+import { View, Text, SafeAreaView, TextInput, KeyboardAvoidingView, Platform, FlatList, ActivityIndicator } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ArrowLeft, Send } from 'lucide-react-native';
 import { Avatar } from '../../../components/ui/Avatar';
 import { IconButton } from '../../../components/ui/IconButton';
 import { Button } from '../../../components/ui/Button';
+import { apiClient } from '../../../api/apiClient';
 
 type ChatState = 'no_message' | 'pending_sent' | 'pending_received' | 'accepted' | 'declined';
 
@@ -14,11 +15,12 @@ const EXISTING_MESSAGES = [
 ];
 
 export default function ConversationScreen() {
-  const { conversationId, postId, postContent, authorName, isAnonymous: isAnonymousParam } = useLocalSearchParams<{
+  const { conversationId, postId, postContent, authorName, authorId, isAnonymous: isAnonymousParam } = useLocalSearchParams<{
     conversationId: string;
     postId?: string;
     postContent?: string;
     authorName?: string;
+    authorId?: string;
     isAnonymous?: string;
   }>();
   const router = useRouter();
@@ -31,27 +33,72 @@ export default function ConversationScreen() {
 
   const [chatState, setChatState] = useState<ChatState>(isNewConversation ? 'no_message' : 'pending_received');
   const [message, setMessage] = useState('');
+  const [loading, setLoading] = useState(false);
   const [sentMessages, setSentMessages] = useState<Array<{ id: string; body: string; isMine: boolean; isAnonymous: boolean }>>([]);
 
   const messages = isNewConversation ? sentMessages : EXISTING_MESSAGES;
 
-  const handleSend = () => {
-    if (!message.trim()) return;
+  const handleSend = async () => {
+    if (!message.trim() || loading) return;
     
+    const text = message.trim();
     const newMsg = {
       id: Date.now().toString(),
-      body: message.trim(),
+      body: text,
       isMine: true,
       isAnonymous: false,
     };
     
     setSentMessages(prev => [...prev, newMsg]);
+    setMessage('');
     
     if (chatState === 'no_message') {
       setChatState('pending_sent');
+      setLoading(true);
+      try {
+        // Wire up backend POST /message-requests endpoint if authorId exists
+        if (authorId) {
+          await apiClient.post('/message-requests', {
+            receiverId: authorId,
+            body: text,
+          });
+        }
+      } catch (err) {
+        console.warn('API sync warning (backend local mode):', err);
+      } finally {
+        setLoading(false);
+      }
     }
-    
-    setMessage('');
+  };
+
+  const handleAccept = async () => {
+    setLoading(true);
+    try {
+      if (conversationId && !conversationId.startsWith('new-')) {
+        await apiClient.post(`/message-requests/${conversationId}/accept`, {});
+      }
+      setChatState('accepted');
+    } catch (err) {
+      console.warn('Accept request error:', err);
+      setChatState('accepted'); // UI optimistic update
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDecline = async () => {
+    setLoading(true);
+    try {
+      if (conversationId && !conversationId.startsWith('new-')) {
+        await apiClient.post(`/message-requests/${conversationId}/decline`, {});
+      }
+      setChatState('declined');
+    } catch (err) {
+      console.warn('Decline request error:', err);
+      setChatState('declined'); // UI optimistic update
+    } finally {
+      setLoading(false);
+    }
   };
 
   const renderHeader = () => (
@@ -108,6 +155,7 @@ export default function ConversationScreen() {
         break;
       case 'pending_sent':
         disabled = true;
+        bannerText = "Message request sent! Waiting for them to accept your request before sending more.";
         placeholder = "Waiting for them to accept your request...";
         break;
       case 'pending_received':
@@ -118,7 +166,8 @@ export default function ConversationScreen() {
         break;
       case 'declined':
         disabled = true;
-        placeholder = "You declined this conversation.";
+        bannerText = "This conversation request was declined. No further messages can be sent.";
+        placeholder = "Conversation declined.";
         break;
     }
 
@@ -135,31 +184,31 @@ export default function ConversationScreen() {
         {showAcceptDecline && (
           <View className="flex-row justify-center space-x-3 mb-4 gap-3">
             <View className="flex-1">
-              <Button variant="secondary" title="Decline" onPress={() => setChatState('declined')} />
+              <Button variant="secondary" title="Decline" onPress={handleDecline} disabled={loading} />
             </View>
             <View className="flex-1">
-              <Button variant="primary" title="Accept" onPress={() => setChatState('accepted')} />
+              <Button variant="primary" title="Accept" onPress={handleAccept} disabled={loading} />
             </View>
           </View>
         )}
         
-        {!showAcceptDecline && chatState !== 'declined' && chatState !== 'pending_sent' && (
+        {!showAcceptDecline && (
           <View className="flex-row items-center">
             <TextInput
-              className={`flex-1 bg-card border border-border rounded-full px-4 py-2 min-h-[44px] font-sans text-ink ${disabled ? 'opacity-50 text-inkMuted' : ''}`}
+              className={`flex-1 bg-card border border-border rounded-full px-4 py-2 min-h-[44px] font-sans text-ink ${disabled ? 'opacity-60 text-inkMuted bg-border/20' : ''}`}
               placeholder={placeholder}
               placeholderTextColor="#6E6659"
               value={message}
               onChangeText={setMessage}
-              editable={!disabled}
-              autoFocus={isNewConversation}
+              editable={!disabled && !loading}
+              autoFocus={isNewConversation && chatState === 'no_message'}
             />
             <IconButton 
               icon={Send} 
               size={18} 
-              color={!message.trim() || disabled ? '#6E6659' : '#FFFFFF'}
-              className={`ml-2 rounded-full w-11 h-11 ${!message.trim() || disabled ? 'bg-border' : 'bg-accent'}`}
-              disabled={!message.trim() || disabled}
+              color={!message.trim() || disabled || loading ? '#6E6659' : '#FFFFFF'}
+              className={`ml-2 rounded-full w-11 h-11 ${!message.trim() || disabled || loading ? 'bg-border' : 'bg-accent'}`}
+              disabled={!message.trim() || disabled || loading}
               onPress={handleSend}
             />
           </View>

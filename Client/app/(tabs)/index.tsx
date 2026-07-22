@@ -1,54 +1,21 @@
-import React, { useState } from 'react';
-import { View, FlatList, SafeAreaView, Text, TouchableOpacity, Image } from 'react-native';
+import React, { useEffect } from 'react';
+import { View, FlatList, SafeAreaView, Text, TouchableOpacity, Image, RefreshControl } from 'react-native';
 import { PostEntry } from '../../components/ui/PostEntry';
 import { IconButton } from '../../components/ui/IconButton';
 import { Bell } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
-
-const MOCK_POSTS = [
-  {
-    id: '1',
-    authorName: 'Sarah J',
-    isAnonymous: false,
-    content: 'I recently left a job that looked perfect on paper but was destroying my mental health. Best decision I ever made.',
-    timestamp: '2 hours ago',
-    likeCount: 42,
-  },
-  {
-    id: '2',
-    isAnonymous: true,
-    content: 'Sometimes I feel like everyone else has a manual for life that I never received. Navigating adulthood feels like guessing the answers on a test I didn\'t study for.',
-    timestamp: '5 hours ago',
-    likeCount: 128,
-  },
-  {
-    id: '3',
-    isAnonymous: true,
-    content: 'Just reached out to my estranged father after 5 years. Im terrified but hopeful.',
-    timestamp: '1 day ago',
-    likeCount: 89,
-  }
-];
+import { usePostStore } from '../../store/usePostStore';
 
 export default function FeedScreen() {
   const router = useRouter();
-  const [posts, setPosts] = useState(MOCK_POSTS.map(post => ({ ...post, isLiked: false })));
+  const posts = usePostStore((state) => state.posts);
+  const loading = usePostStore((state) => state.loading);
+  const fetchFeed = usePostStore((state) => state.fetchFeed);
+  const toggleLike = usePostStore((state) => state.toggleLike);
 
-  const handleLike = (id: string) => {
-    setPosts(prev => 
-      prev.map(post => {
-        if (post.id === id) {
-          const isLiked = !post.isLiked;
-          return {
-            ...post,
-            isLiked,
-            likeCount: isLiked ? post.likeCount + 1 : post.likeCount - 1
-          };
-        }
-        return post;
-      })
-    );
-  };
+  useEffect(() => {
+    fetchFeed();
+  }, []);
 
   return (
     <SafeAreaView style={{ flex: 1 }} className="flex-1 bg-background">
@@ -76,10 +43,13 @@ export default function FeedScreen() {
       <FlatList
         data={posts}
         keyExtractor={(item) => item.id}
+        refreshControl={
+          <RefreshControl refreshing={loading} onRefresh={fetchFeed} colors={['#B3542E']} />
+        }
         renderItem={({ item }) => (
           <PostEntry 
             {...item} 
-            onLike={() => handleLike(item.id)}
+            onLike={() => toggleLike(item.id)}
             onRelate={() => router.push({
               pathname: '/(tabs)/chats/[conversationId]',
               params: {
@@ -87,6 +57,7 @@ export default function FeedScreen() {
                 postId: item.id,
                 postContent: item.content,
                 authorName: item.authorName || '',
+                authorId: item.authorId || '',
                 isAnonymous: item.isAnonymous ? 'true' : 'false',
               }
             })}

@@ -1,7 +1,12 @@
 import { useAuthStore } from '../store/useAuthStore';
 
-// In a real app this would come from env
-const API_BASE_URL = 'http://localhost:3000/api';
+// Dynamically determine host IP so localhost, 127.0.0.1, or local LAN IP (e.g. 192.168.x.x) work across mobile phones & web
+const getBaseUrl = () => {
+  if (typeof window !== 'undefined' && window.location && window.location.hostname) {
+    return `http://${window.location.hostname}:3000/api`;
+  }
+  return 'http://localhost:3000/api';
+};
 
 class ApiError extends Error {
   status: number;
@@ -20,7 +25,7 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
     headers.set('Authorization', `Bearer ${token}`);
   }
 
-  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+  const response = await fetch(`${getBaseUrl()}${endpoint}`, {
     ...options,
     headers,
   });

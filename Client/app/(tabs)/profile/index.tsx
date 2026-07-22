@@ -1,25 +1,23 @@
-import React from 'react';
-import { View, Text, SafeAreaView, ScrollView, TouchableOpacity } from 'react-native';
+import React, { useEffect } from 'react';
+import { View, Text, SafeAreaView, ScrollView, TouchableOpacity, RefreshControl } from 'react-native';
 import { Avatar } from '../../../components/ui/Avatar';
 import { PostEntry } from '../../../components/ui/PostEntry';
 import { IconButton } from '../../../components/ui/IconButton';
 import { Settings, ChevronRight } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { useAuthStore } from '../../../store/useAuthStore';
-
-const MOCK_MY_POSTS = [
-  {
-    id: '3',
-    isAnonymous: true,
-    content: 'Just reached out to my estranged father after 5 years. Im terrified but hopeful.',
-    timestamp: '1 day ago',
-    likeCount: 89,
-  }
-];
+import { usePostStore } from '../../../store/usePostStore';
 
 export default function ProfileScreen() {
   const router = useRouter();
   const user = useAuthStore((state) => state.user);
+  const myPosts = usePostStore((state) => state.myPosts);
+  const fetchMyPosts = usePostStore((state) => state.fetchMyPosts);
+  const toggleLike = usePostStore((state) => state.toggleLike);
+
+  useEffect(() => {
+    fetchMyPosts();
+  }, []);
 
   return (
     <SafeAreaView style={{ flex: 1 }} className="flex-1 bg-background">
@@ -32,15 +30,20 @@ export default function ProfileScreen() {
         />
       </View>
       
-      <ScrollView className="flex-1">
+      <ScrollView 
+        className="flex-1"
+        refreshControl={
+          <RefreshControl refreshing={false} onRefresh={fetchMyPosts} colors={['#B3542E']} />
+        }
+      >
         <View className="flex-row items-center p-6 border-b border-border bg-background">
-          <Avatar size={64} name={user?.name || 'Demo User'} imageUri={user?.avatarUrl} />
-          <View className="ml-4">
+          <Avatar size={64} name={user?.name || 'Google User'} imageUri={user?.avatarUrl} />
+          <View className="ml-4 flex-1">
             <Text className="text-lg font-serif font-semibold text-ink">
-              {user?.name || 'Demo User'}
+              {user?.name || 'Google User'}
             </Text>
             <Text className="font-sans text-inkMuted text-sm mt-0.5">
-              {user?.email || 'user@example.com'}
+              {user?.email || 'user@gmail.com'}
             </Text>
           </View>
         </View>
@@ -57,15 +60,21 @@ export default function ProfileScreen() {
 
           <Text className="text-lg font-serif font-semibold text-ink mb-6">My Posts</Text>
           
-          {MOCK_MY_POSTS.length === 0 ? (
+          {myPosts.length === 0 ? (
             <View className="py-10 items-center">
               <Text className="font-serif italic text-inkMuted text-base text-center">
-                Nothing here yet.
+                You haven't created any posts yet.
               </Text>
             </View>
           ) : (
-            MOCK_MY_POSTS.map(post => (
-              <PostEntry key={post.id} {...post} authorName={user?.name} authorImage={user?.avatarUrl} />
+            myPosts.map((post) => (
+              <PostEntry 
+                key={post.id} 
+                {...post} 
+                authorName={post.isAnonymous ? 'Anonymous' : (user?.name || 'Google User')} 
+                authorImage={post.isAnonymous ? undefined : user?.avatarUrl} 
+                onLike={() => toggleLike(post.id)}
+              />
             ))
           )}
         </View>

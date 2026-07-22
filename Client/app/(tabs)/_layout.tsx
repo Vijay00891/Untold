@@ -54,7 +54,6 @@ export default function TabLayout() {
           tabBarIcon: ({ color }) => <User color={color} size={22} strokeWidth={1.5} />,
         }}
       />
-      <Tabs.Screen name="profile/edit" options={{ href: null }} />
       <Tabs.Screen name="chats/[conversationId]" options={{ href: null }} />
     </Tabs>
   );

@@ -26,41 +26,75 @@ export const useAuthStore = create<AuthState>((set) => ({
   isAuthenticated: false,
   
   login: async (user, token) => {
-    if (Platform.OS !== 'web') {
-      await SecureStore.setItemAsync('jwt_token', token);
-    } else {
-      // On web, cookies are preferred but fallback to localStorage if needed
-      localStorage.setItem('jwt_token', token);
+    try {
+      if (Platform.OS !== 'web') {
+        await SecureStore.setItemAsync('jwt_token', token);
+        await SecureStore.setItemAsync('user_data', JSON.stringify(user));
+      } else {
+        localStorage.setItem('jwt_token', token);
+        localStorage.setItem('user_data', JSON.stringify(user));
+      }
+    } catch (e) {
+      console.warn('Storage save error:', e);
     }
     set({ user, token, isAuthenticated: true });
   },
   
   logout: async () => {
-    if (Platform.OS !== 'web') {
-      await SecureStore.deleteItemAsync('jwt_token');
-    } else {
-      localStorage.removeItem('jwt_token');
+    try {
+      if (Platform.OS !== 'web') {
+        await SecureStore.deleteItemAsync('jwt_token');
+        await SecureStore.deleteItemAsync('user_data');
+      } else {
+        localStorage.removeItem('jwt_token');
+        localStorage.removeItem('user_data');
+      }
+    } catch (e) {
+      console.warn('Storage delete error:', e);
     }
     set({ user: null, token: null, isAuthenticated: false });
   },
 
   updateUser: (data) => {
-    set((state) => ({
-      user: state.user ? { ...state.user, ...data } : null
-    }));
+    set((state) => {
+      const updatedUser = state.user ? { ...state.user, ...data } : null;
+      if (updatedUser) {
+        if (Platform.OS !== 'web') {
+          SecureStore.setItemAsync('user_data', JSON.stringify(updatedUser)).catch(() => {});
+        } else {
+          localStorage.setItem('user_data', JSON.stringify(updatedUser));
+        }
+      }
+      return { user: updatedUser };
+    });
   },
 
   restoreToken: async () => {
-    let token = null;
-    if (Platform.OS !== 'web') {
-      token = await SecureStore.getItemAsync('jwt_token');
-    } else {
-      token = localStorage.getItem('jwt_token');
-    }
-    
-    if (token) {
-      // Typically you'd decode or validate the token here
-      set({ token, isAuthenticated: true });
+    try {
+      let token: string | null = null;
+      let userDataStr: string | null = null;
+
+      if (Platform.OS !== 'web') {
+        token = await SecureStore.getItemAsync('jwt_token');
+        userDataStr = await SecureStore.getItemAsync('user_data');
+      } else {
+        token = localStorage.getItem('jwt_token');
+        userDataStr = localStorage.getItem('user_data');
+      }
+      
+      if (token) {
+        let user: User | null = null;
+        if (userDataStr) {
+          try {
+            user = JSON.parse(userDataStr);
+          } catch {
+            user = null;
+          }
+        }
+        set({ token, user, isAuthenticated: true });
+      }
+    } catch (e) {
+      console.warn('Restore session error:', e);
     }
   }
 }));

@@ -8,6 +8,7 @@ import { useEffect } from 'react';
 import { View } from 'react-native';
 import 'react-native-reanimated';
 import '../global.css';
+import { useAuthStore } from '../store/useAuthStore';
 
 export {
   ErrorBoundary,
@@ -20,6 +21,8 @@ export const unstable_settings = {
 SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
+  const restoreToken = useAuthStore((state) => state.restoreToken);
+
   const [interLoaded, interError] = useInter({
     Inter_400Regular,
     Inter_500Medium,
@@ -41,6 +44,11 @@ export default function RootLayout() {
   const loaded = interLoaded && loraLoaded && jbLoaded;
 
   useEffect(() => {
+    // Restore persistent session on app startup
+    restoreToken();
+  }, []);
+
+  useEffect(() => {
     if (error) throw error;
   }, [error]);
 
@@ -59,7 +67,7 @@ export default function RootLayout() {
       <View style={{ flex: 1, width: '100%', maxWidth: 640, backgroundColor: '#FBF9F5', overflow: 'hidden' }} className="flex-1 w-full max-w-[640px] bg-background">
         <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: '#FBF9F5' } }}>
           <Stack.Screen name="(tabs)" />
-          <Stack.Screen name="(auth)" />
+          <Stack.Screen name="(auth)/login" />
           <Stack.Screen name="settings/index" />
           <Stack.Screen name="settings/privacy" />
           <Stack.Screen name="notifications/index" />
