@@ -71,6 +71,3 @@ No phone numbers, no IP logging, no location data, no device fingerprinting.
 
 Actively in development. Current focus: core screens (feed, post creation, chat, profile) and the message-request flow.
 
-## License
-
-TBD
