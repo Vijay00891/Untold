@@ -14,7 +14,7 @@ const app = express();
 // Security
 app.use(helmet());
 app.use(cors({
-  origin: ['http://localhost:8081', 'http://localhost:19006', 'http://localhost:3000'],
+  origin: ['http://localhost:8081', 'http://localhost:19006', 'http://localhost:3000', 'https://untold-pied.vercel.app'],
   credentials: true,
 }));
 
