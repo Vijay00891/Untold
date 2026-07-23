@@ -2,6 +2,10 @@ import { useAuthStore } from '../store/useAuthStore';
 
 // Dynamically determine host IP so localhost, 127.0.0.1, or local LAN IP (e.g. 192.168.x.x) work across mobile phones & web
 const getBaseUrl = () => {
+  if (typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+    // Replace with your actual Render backend URL
+    return 'https://untold-backend-gvff.onrender.com/api';
+  }
   if (typeof window !== 'undefined' && window.location && window.location.hostname) {
     return `http://${window.location.hostname}:3000/api`;
   }
@@ -18,7 +22,7 @@ class ApiError extends Error {
 
 async function request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
   const token = useAuthStore.getState().token;
-  
+
   const headers = new Headers(options.headers);
   headers.set('Content-Type', 'application/json');
   if (token) {
