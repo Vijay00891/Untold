@@ -2,14 +2,11 @@ import pg from 'pg';
 import { env } from './env.js';
 import { logger } from '../utils/logger.util.js';
 
-const isCloudDb = env.NODE_ENV === 'production' || env.DATABASE_URL.includes('supabase') || env.DATABASE_URL.includes('pooler');
-
 const pool = new pg.Pool({
   connectionString: env.DATABASE_URL,
   max: 20,
   idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 10000,
-  ssl: isCloudDb ? { rejectUnauthorized: false } : false,
+  connectionTimeoutMillis: 5000,
 });
 
 pool.on('error', (err) => {
