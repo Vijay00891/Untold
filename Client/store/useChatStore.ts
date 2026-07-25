@@ -1,9 +1,13 @@
 import { create } from 'zustand';
 import { io, Socket } from 'socket.io-client';
 import { useAuthStore } from './useAuthStore';
+import { useNotificationStore } from './useNotificationStore';
 
 // In a real app this would come from env
-const SOCKET_URL = 'http://localhost:3000';
+// Since Vercel is used in production, dynamically resolve backend URL
+const SOCKET_URL = typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1'
+  ? 'https://untold-backend-gvff.onrender.com'
+  : 'http://localhost:3000';
 
 interface Message {
   id: string;
@@ -45,6 +49,10 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
     socket.on('new_message', (message: Message) => {
       get().addMessage(message);
+    });
+
+    socket.on('notification:new', (notification: any) => {
+      useNotificationStore.getState().addNotification(notification);
     });
 
     set({ socket });

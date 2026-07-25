@@ -1,5 +1,6 @@
 import { query, getClient } from '../../config/db.js';
 import { AppError } from '../../middleware/errorHandler.middleware.js';
+import { createNotification } from '../notifications/notifications.service.js';
 
 export interface Post {
   id: string;
@@ -115,14 +116,33 @@ export async function likePost(userId: string, postId: string): Promise<{ likeCo
       );
     }
 
-    const post = await client.query('SELECT like_count FROM posts WHERE id = $1', [postId]);
+    const post = await client.query('SELECT author_id, body, like_count FROM posts WHERE id = $1', [postId]);
     await client.query('COMMIT');
 
     if (post.rows.length === 0) {
       throw new AppError('Post not found', 404);
     }
 
-    return { likeCount: post.rows[0].like_count };
+    const postData = post.rows[0];
+
+    // Trigger notification if liked by someone else
+    if (inserted.rowCount && inserted.rowCount > 0 && postData.author_id && postData.author_id !== userId) {
+      const truncatedBody = postData.body.length > 30 ? postData.body.substring(0, 30) + '...' : postData.body;
+      // We wrap in try-catch to avoid failing the HTTP request if notification fails
+      try {
+        await createNotification(
+          postData.author_id,
+          'like',
+          'Post Liked',
+          `Someone liked your post "${truncatedBody}".`,
+          { postId }
+        );
+      } catch (err) {
+        // Log error but don't fail the request
+      }
+    }
+
+    return { likeCount: postData.like_count };
   } catch (err) {
     await client.query('ROLLBACK');
     throw err;

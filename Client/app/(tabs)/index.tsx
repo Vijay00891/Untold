@@ -10,6 +10,9 @@ if (typeof window !== 'undefined') {
   WebBrowser.maybeCompleteAuthSession();
 }
 import { usePostStore } from '../../store/usePostStore';
+import { useChatStore } from '../../store/useChatStore';
+import { useNotificationStore } from '../../store/useNotificationStore';
+import { useAuthStore } from '../../store/useAuthStore';
 
 export default function FeedScreen() {
   const router = useRouter();
@@ -18,9 +21,18 @@ export default function FeedScreen() {
   const fetchFeed = usePostStore((state) => state.fetchFeed);
   const toggleLike = usePostStore((state) => state.toggleLike);
 
+  const connectSockets = useChatStore((state) => state.connect);
+  const fetchNotifications = useNotificationStore((state) => state.fetchNotifications);
+  const unreadCount = useNotificationStore((state) => state.unreadCount);
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+
   useEffect(() => {
     fetchFeed();
-  }, []);
+    if (isAuthenticated) {
+      connectSockets();
+      fetchNotifications();
+    }
+  }, [isAuthenticated]);
 
   return (
     <SafeAreaView style={{ flex: 1 }} className="flex-1 bg-background">
@@ -41,7 +53,9 @@ export default function FeedScreen() {
         >
           <IconButton icon={Bell} size={24} onPress={() => router.push('/notifications')} />
           {/* Unread indicator */}
-          <View className="absolute right-2 top-2 w-2.5 h-2.5 bg-seal rounded-full border-2 border-background" />
+          {unreadCount > 0 && (
+            <View className="absolute right-2 top-2 w-2.5 h-2.5 bg-seal rounded-full border-2 border-background" />
+          )}
         </TouchableOpacity>
       </View>
       

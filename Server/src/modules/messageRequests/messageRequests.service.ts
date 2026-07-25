@@ -1,5 +1,6 @@
 import { query, getClient } from '../../config/db.js';
 import { AppError } from '../../middleware/errorHandler.middleware.js';
+import { createNotification } from '../notifications/notifications.service.js';
 
 export interface MessageRequest {
   id: string;
@@ -52,7 +53,23 @@ export async function sendFirstMessage(
     [senderId, receiverId, body]
   );
 
-  return result.rows[0] as MessageRequest;
+  const request = result.rows[0] as MessageRequest;
+
+  // Trigger notification for the receiver
+  try {
+    const truncatedMessage = body.length > 30 ? body.substring(0, 30) + '...' : body;
+    await createNotification(
+      receiverId,
+      'request',
+      'New Message Request',
+      `Someone sent you a message request: "${truncatedMessage}"`,
+      { requestId: request.id }
+    );
+  } catch (err) {
+    // Log but don't crash
+  }
+
+  return request;
 }
 
 /**
@@ -127,6 +144,19 @@ export async function acceptRequest(
     );
 
     await client.query('COMMIT');
+
+    // Trigger notification for the sender
+    try {
+      await createNotification(
+        request.sender_id,
+        'accept',
+        'Request Accepted',
+        'Anonymous accepted your message request. You can now chat.',
+        { conversationId: requestId }
+      );
+    } catch (err) {
+      // Log but don't crash
+    }
 
     return { conversationId: requestId };
   } catch (err) {

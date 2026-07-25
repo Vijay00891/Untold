@@ -1,5 +1,6 @@
 import { query } from '../../config/db.js';
 import { AppError } from '../../middleware/errorHandler.middleware.js';
+import { createNotification } from '../notifications/notifications.service.js';
 
 export interface Message {
   id: string;
@@ -45,7 +46,7 @@ export async function sendMessage(
   senderId: string,
   encryptedBody: string
 ): Promise<Message> {
-  await verifyConversationAccess(conversationId, senderId);
+  const reqObj = await verifyConversationAccess(conversationId, senderId);
 
   const result = await query(
     `INSERT INTO messages (conversation_id, sender_id, body_encrypted)
@@ -54,7 +55,24 @@ export async function sendMessage(
     [conversationId, senderId, encryptedBody]
   );
 
-  return result.rows[0] as Message;
+  const message = result.rows[0] as Message;
+
+  // Trigger notification for the receiver
+  try {
+    const receiverId = reqObj.sender_id === senderId ? reqObj.receiver_id : reqObj.sender_id;
+    // Note: Since the body is encrypted, we send a generic notification preview.
+    await createNotification(
+      receiverId,
+      'message',
+      'New Message',
+      'You received a new message.',
+      { conversationId }
+    );
+  } catch (err) {
+    // Log but don't fail the request
+  }
+
+  return message;
 }
 
 /**

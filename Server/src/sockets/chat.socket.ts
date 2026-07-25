@@ -15,7 +15,7 @@ export function getIO(): Server {
 export function initSocketServer(httpServer: HttpServer) {
   io = new Server(httpServer, {
     cors: {
-      origin: ['http://localhost:8081', 'http://localhost:19006', 'http://localhost:3000'],
+      origin: ['http://localhost:8081', 'http://localhost:19006', 'http://localhost:3000', 'https://untold-pied.vercel.app'],
       credentials: true,
     },
     pingTimeout: 60000,

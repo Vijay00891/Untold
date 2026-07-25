@@ -1,39 +1,35 @@
-import React from 'react';
-import { View, Text, SafeAreaView, FlatList, TouchableOpacity } from 'react-native';
+import React, { useEffect } from 'react';
+import { View, Text, SafeAreaView, FlatList, TouchableOpacity, RefreshControl } from 'react-native';
 import { useRouter } from 'expo-router';
-import { ArrowLeft, MessageCircle, Heart, UserCheck } from 'lucide-react-native';
+import { ArrowLeft, MessageCircle, Heart, UserCheck, Check } from 'lucide-react-native';
 import { IconButton } from '../../components/ui/IconButton';
-import { Avatar } from '../../components/ui/Avatar';
-
-const MOCK_NOTIFICATIONS = [
-  {
-    id: '1',
-    type: 'request', // someone sent a message request
-    title: 'New Message Request',
-    body: 'Someone related to your post about your mental health.',
-    timestamp: '10 min ago',
-    unread: true,
-  },
-  {
-    id: '2',
-    type: 'accept', // someone accepted your message request
-    title: 'Request Accepted',
-    body: 'Anonymous accepted your message request. You can now chat.',
-    timestamp: '2 hours ago',
-    unread: false,
-  },
-  {
-    id: '3',
-    type: 'like', // someone liked your post
-    title: 'Post Liked',
-    body: 'Someone liked your post about navigating adulthood.',
-    timestamp: '1 day ago',
-    unread: false,
-  }
-];
+import { useNotificationStore, Notification } from '../../store/useNotificationStore';
 
 export default function NotificationsScreen() {
   const router = useRouter();
+  const notifications = useNotificationStore((state) => state.notifications);
+  const loading = useNotificationStore((state) => state.loading);
+  const fetchNotifications = useNotificationStore((state) => state.fetchNotifications);
+  const markAsRead = useNotificationStore((state) => state.markAsRead);
+  const markAllAsRead = useNotificationStore((state) => state.markAllAsRead);
+
+  useEffect(() => {
+    fetchNotifications();
+  }, []);
+
+  const formatRelativeTime = (dateString: string) => {
+    const now = new Date();
+    const date = new Date(dateString);
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMins / 60);
+    const diffDays = Math.floor(diffHours / 24);
+
+    if (diffMins < 1) return 'Just now';
+    if (diffMins < 60) return `${diffMins} min ago`;
+    if (diffHours < 24) return `${diffHours} hours ago`;
+    return `${diffDays} days ago`;
+  };
 
   const getIcon = (type: string) => {
     switch (type) {
@@ -44,28 +40,35 @@ export default function NotificationsScreen() {
     }
   };
 
-  const renderItem = ({ item }: { item: typeof MOCK_NOTIFICATIONS[0] }) => (
+  const handleNotificationPress = async (item: Notification) => {
+    if (item.unread) {
+      await markAsRead(item.id);
+    }
+    
+    // Navigate based on type
+    if (item.type === 'request' || item.type === 'accept' || item.type === 'message') {
+      router.push('/(tabs)/chats');
+    } else {
+      router.push('/(tabs)/profile');
+    }
+  };
+
+  const renderItem = ({ item }: { item: Notification }) => (
     <TouchableOpacity 
-      className={`flex-row p-4 border-b border-border ${item.unread ? 'bg-background' : 'bg-background'}`}
+      className={`flex-row p-4 border-b border-border ${item.unread ? 'bg-card/30' : 'bg-background'}`}
       activeOpacity={0.7}
-      onPress={() => {
-        if (item.type === 'request' || item.type === 'accept') {
-          router.push('/(tabs)/chats');
-        } else {
-          router.push('/(tabs)/profile');
-        }
-      }}
+      onPress={() => handleNotificationPress(item)}
     >
       <View className={`w-12 h-12 rounded-full items-center justify-center bg-card border border-border mr-3`}>
         {getIcon(item.type)}
       </View>
       <View className="flex-1 justify-center">
         <View className="flex-row justify-between items-start mb-1">
-          <Text className={`font-sans font-medium text-base text-ink`}>
+          <Text className={`font-sans ${item.unread ? 'font-semibold text-ink' : 'font-medium text-ink/80'}`}>
             {item.title}
           </Text>
           <Text className={`font-sans text-xs ${item.unread ? 'text-accent font-medium' : 'text-inkMuted'}`}>
-            {item.timestamp}
+            {formatRelativeTime(item.created_at)}
           </Text>
         </View>
         <Text className={`font-sans text-sm ${item.unread ? 'text-ink font-medium' : 'text-inkMuted'}`}>
@@ -77,16 +80,35 @@ export default function NotificationsScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-background">
-      <View className="px-4 h-14 flex-row items-center bg-background border-b border-border">
-        <IconButton icon={ArrowLeft} onPress={() => router.back()} className="-ml-2 mr-2" />
-        <Text style={{ fontFamily: 'Lora', fontSize: 24 }} className="font-semibold text-ink">Notifications</Text>
+      <View className="px-4 h-14 flex-row items-center justify-between bg-background border-b border-border">
+        <View className="flex-row items-center">
+          <IconButton icon={ArrowLeft} onPress={() => router.back()} className="-ml-2 mr-2" />
+          <Text style={{ fontFamily: 'Lora', fontSize: 24 }} className="font-semibold text-ink">Notifications</Text>
+        </View>
+        {notifications.length > 0 && (
+          <IconButton 
+            icon={Check} 
+            onPress={markAllAsRead} 
+            className="mr-[-8px]"
+          />
+        )}
       </View>
       
       <FlatList
-        data={MOCK_NOTIFICATIONS}
+        data={notifications}
         keyExtractor={(item) => item.id}
         renderItem={renderItem}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={loading} onRefresh={fetchNotifications} colors={['#B3542E']} />
+        }
+        ListEmptyComponent={
+          <View className="flex-1 items-center justify-center pt-20 px-6">
+            <Text className="font-serif italic text-inkMuted text-base text-center">
+              No notifications yet.
+            </Text>
+          </View>
+        }
       />
     </SafeAreaView>
   );

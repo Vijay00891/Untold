@@ -45,7 +45,9 @@ export default function ProfileScreen() {
 
         <View className="flex-1 justify-center items-center p-6">
           <View className="w-full max-w-sm bg-card border border-border rounded-3xl p-6 items-center shadow-xs">
-            <Avatar size={72} name="Guest" className="mb-4" />
+            <View style={{ marginBottom: 16 }}>
+              <Avatar size={72} name="Guest" />
+            </View>
             <Text className="text-xl font-serif font-semibold text-ink mb-2 text-center">
               Welcome to Untold
             </Text>

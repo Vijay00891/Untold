@@ -8,6 +8,7 @@ import { usersRoutes } from './modules/users/users.routes.js';
 import { postsRoutes } from './modules/posts/posts.routes.js';
 import { messageRequestsRoutes } from './modules/messageRequests/messageRequests.routes.js';
 import { messagesRoutes } from './modules/messages/messages.routes.js';
+import { notificationsRoutes } from './modules/notifications/notifications.routes.js';
 
 const app = express();
 
@@ -33,6 +34,7 @@ app.use('/api/users', usersRoutes);
 app.use('/api/posts', postsRoutes);
 app.use('/api/message-requests', messageRequestsRoutes);
 app.use('/api/conversations', messagesRoutes);
+app.use('/api/notifications', notificationsRoutes);
 
 // 404 fallback
 app.use((_req, res) => {
