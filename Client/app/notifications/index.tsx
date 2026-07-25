@@ -95,6 +95,7 @@ export default function NotificationsScreen() {
       </View>
       
       <FlatList
+        style={{ flex: 1 }}
         data={notifications}
         keyExtractor={(item) => item.id}
         renderItem={renderItem}
