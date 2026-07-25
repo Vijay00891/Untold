@@ -79,7 +79,7 @@ export default function NotificationsScreen() {
   );
 
   return (
-    <SafeAreaView className="flex-1 bg-background">
+    <SafeAreaView style={{ flex: 1 }} className="flex-1 bg-background">
       <View className="px-4 h-14 flex-row items-center justify-between bg-background border-b border-border">
         <View className="flex-row items-center">
           <IconButton icon={ArrowLeft} onPress={() => router.back()} className="-ml-2 mr-2" />
