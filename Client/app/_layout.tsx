@@ -9,6 +9,11 @@ import { View } from 'react-native';
 import 'react-native-reanimated';
 import '../global.css';
 import { useAuthStore } from '../store/useAuthStore';
+import * as WebBrowser from 'expo-web-browser';
+
+if (typeof window !== 'undefined') {
+  WebBrowser.maybeCompleteAuthSession();
+}
 
 export {
   ErrorBoundary,
