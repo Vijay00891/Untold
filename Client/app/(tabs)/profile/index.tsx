@@ -8,6 +8,11 @@ import { Settings, ChevronRight } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { useAuthStore } from '../../../store/useAuthStore';
 import { usePostStore } from '../../../store/usePostStore';
+import * as WebBrowser from 'expo-web-browser';
+
+if (typeof window !== 'undefined') {
+  WebBrowser.maybeCompleteAuthSession();
+}
 
 export default function ProfileScreen() {
   const router = useRouter();

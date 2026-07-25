@@ -4,6 +4,11 @@ import { PostEntry } from '../../components/ui/PostEntry';
 import { IconButton } from '../../components/ui/IconButton';
 import { Bell } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
+import * as WebBrowser from 'expo-web-browser';
+
+if (typeof window !== 'undefined') {
+  WebBrowser.maybeCompleteAuthSession();
+}
 import { usePostStore } from '../../store/usePostStore';
 
 export default function FeedScreen() {
