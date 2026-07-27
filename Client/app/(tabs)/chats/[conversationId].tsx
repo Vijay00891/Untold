@@ -162,6 +162,12 @@ export default function ConversationScreen() {
       );
     }
 
+    if (activeMessages.length === 0) {
+      return (
+        <View className="flex-1" />
+      );
+    }
+
     return (
       <FlatList
         data={activeMessages}
