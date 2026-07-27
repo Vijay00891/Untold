@@ -11,6 +11,8 @@ import { useAuthStore } from '../../../store/useAuthStore';
 
 type ChatState = 'no_message' | 'pending_sent' | 'pending_received' | 'accepted' | 'declined';
 
+const EMPTY_MESSAGES = [] as any[];
+
 export default function ConversationScreen() {
   const { conversationId, postId, postContent, authorName, authorId, isAnonymous: isAnonymousParam, isRequestPending, firstMessage } = useLocalSearchParams<{
     conversationId: string;
@@ -30,8 +32,8 @@ export default function ConversationScreen() {
 
   const currentUser = useAuthStore((state) => state.user);
 
-  // Zustand chat store hook
-  const activeMessages = useChatStore((state) => state.messages[conversationId] || []);
+  // Zustand chat store hook - Use stable EMPTY_MESSAGES reference to prevent re-render loops
+  const activeMessages = useChatStore((state) => state.messages[conversationId] || EMPTY_MESSAGES);
   const fetchMessages = useChatStore((state) => state.fetchMessages);
   const sendMessage = useChatStore((state) => state.sendMessage);
   const setActiveConversation = useChatStore((state) => state.setActiveConversation);
@@ -257,11 +259,14 @@ export default function ConversationScreen() {
     );
   };
 
+  const Container = Platform.OS === 'web' ? View : KeyboardAvoidingView;
+
   return (
     <SafeAreaView style={{ flex: 1 }} className="flex-1 bg-background">
-      <KeyboardAvoidingView 
+      <Container 
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         className="flex-1"
+        style={{ flex: 1 }}
       >
         {renderHeader()}
         <View className="flex-1 bg-background">
@@ -269,7 +274,7 @@ export default function ConversationScreen() {
           {renderMessageList()}
         </View>
         {renderInputArea()}
-      </KeyboardAvoidingView>
+      </Container>
     </SafeAreaView>
   );
 }
