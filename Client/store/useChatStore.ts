@@ -71,13 +71,21 @@ export const useChatStore = create<ChatState>((set, get) => ({
       }
     });
 
-    socket.on('message:new', (dbMsg: DBMessage) => {
+    socket.on('new_message', (dbMsg: DBMessage) => {
       const msg = mapDBMessage(dbMsg);
       get().addMessage(msg);
     });
 
     socket.on('notification:new', (notification: any) => {
       useNotificationStore.getState().addNotification(notification);
+    });
+
+    socket.on('new_message_request', (request: any) => {
+      useNotificationStore.getState().fetchNotifications();
+    });
+
+    socket.on('request_accepted', (data: any) => {
+      useNotificationStore.getState().fetchNotifications();
     });
 
     set({ socket });

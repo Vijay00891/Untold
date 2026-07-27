@@ -46,7 +46,7 @@ export function initSocketServer(httpServer: HttpServer) {
     socket.join(`user:${userId}`);
 
     // Join a conversation room
-    socket.on('join:conversation', async (conversationId: string) => {
+    socket.on('join_conversation', async (conversationId: string) => {
       try {
         // Verify the user is a participant
         const result = await query(
@@ -61,7 +61,7 @@ export function initSocketServer(httpServer: HttpServer) {
           return;
         }
 
-        socket.join(`conversation:${conversationId}`);
+        socket.join(conversationId);
         logger.debug({ userId, conversationId }, 'Joined conversation room');
       } catch (err) {
         logger.error({ err, userId, conversationId }, 'Error joining conversation');
@@ -70,8 +70,8 @@ export function initSocketServer(httpServer: HttpServer) {
     });
 
     // Leave a conversation room
-    socket.on('leave:conversation', (conversationId: string) => {
-      socket.leave(`conversation:${conversationId}`);
+    socket.on('leave_conversation', (conversationId: string) => {
+      socket.leave(conversationId);
     });
 
     socket.on('disconnect', () => {
@@ -86,19 +86,19 @@ export function initSocketServer(httpServer: HttpServer) {
  * Emit a new message to everyone in the conversation room.
  */
 export function emitNewMessage(conversationId: string, message: any) {
-  io.to(`conversation:${conversationId}`).emit('message:new', message);
+  io.to(conversationId).emit('new_message', message);
 }
 
 /**
  * Emit a new message request notification to the receiver.
  */
 export function emitNewMessageRequest(receiverId: string, request: any) {
-  io.to(`user:${receiverId}`).emit('messageRequest:new', request);
+  io.to(`user:${receiverId}`).emit('new_message_request', request);
 }
 
 /**
  * Notify the sender when their request is accepted.
  */
 export function emitRequestAccepted(senderId: string, conversationId: string) {
-  io.to(`user:${senderId}`).emit('messageRequest:accepted', { conversationId });
+  io.to(`user:${senderId}`).emit('request_accepted', { conversationId });
 }
