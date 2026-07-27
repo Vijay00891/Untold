@@ -13,6 +13,8 @@ import { usePostStore } from '../../store/usePostStore';
 import { useChatStore } from '../../store/useChatStore';
 import { useNotificationStore } from '../../store/useNotificationStore';
 import { useAuthStore } from '../../store/useAuthStore';
+import { apiClient } from '../../api/apiClient';
+import { useState } from 'react';
 
 export default function FeedScreen() {
   const router = useRouter();
@@ -25,6 +27,50 @@ export default function FeedScreen() {
   const fetchNotifications = useNotificationStore((state) => state.fetchNotifications);
   const unreadCount = useNotificationStore((state) => state.unreadCount);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+
+  const [checkingRelate, setCheckingRelate] = useState<string | null>(null);
+
+  const handleRelatePress = async (item: any) => {
+    if (checkingRelate) return;
+    setCheckingRelate(item.id);
+    try {
+      // Query if an existing relationship (request or conversation) exists with this post's author
+      const res = await apiClient.get<{ status: string; conversationId: string | null }>(
+        `/message-requests/post-status/${item.id}`
+      );
+      
+      if (res.conversationId && res.status !== 'none') {
+        // Active or pending connection exists, route straight to it
+        router.push({
+          pathname: '/(tabs)/chats/[conversationId]',
+          params: {
+            conversationId: res.conversationId,
+            authorName: item.authorName || 'Anonymous',
+            isAnonymous: item.isAnonymous ? 'true' : 'false',
+            isRequestPending: res.status === 'pending_received' ? 'true' : 'false',
+            firstMessage: res.status === 'pending_received' ? item.content || item.body : '',
+          }
+        });
+      } else {
+        // Start a fresh request
+        router.push({
+          pathname: '/(tabs)/chats/[conversationId]',
+          params: {
+            conversationId: `new-${item.id}`,
+            postId: item.id,
+            postContent: item.content || item.body,
+            authorName: item.authorName || '',
+            authorId: item.authorId || '',
+            isAnonymous: item.isAnonymous ? 'true' : 'false',
+          }
+        });
+      }
+    } catch (err) {
+      console.warn('Relate check error:', err);
+    } finally {
+      setCheckingRelate(null);
+    }
+  };
 
   useEffect(() => {
     fetchFeed();
@@ -69,17 +115,7 @@ export default function FeedScreen() {
           <PostEntry 
             {...item} 
             onLike={() => toggleLike(item.id)}
-            onRelate={() => router.push({
-              pathname: '/(tabs)/chats/[conversationId]',
-              params: {
-                conversationId: `new-${item.id}`,
-                postId: item.id,
-                postContent: item.content,
-                authorName: item.authorName || '',
-                authorId: item.authorId || '',
-                isAnonymous: item.isAnonymous ? 'true' : 'false',
-              }
-            })}
+            onRelate={() => handleRelatePress(item)}
           />
         )}
         contentContainerStyle={{ padding: 16, paddingBottom: 80 }}

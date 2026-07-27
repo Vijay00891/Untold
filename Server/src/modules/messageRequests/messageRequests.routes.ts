@@ -65,6 +65,42 @@ router.get('/status/:otherUserId', requireAuth, async (req: Request, res: Respon
   }
 });
 
+// GET /message-requests/post-status/:postId
+router.get('/post-status/:postId', requireAuth, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    // 1. Find the author of the post securely
+    const postResult = await query('SELECT author_id FROM posts WHERE id = $1', [req.params.postId]);
+    if (postResult.rows.length === 0) {
+      return res.status(404).json({ message: 'Post not found' });
+    }
+    const authorId = postResult.rows[0].author_id;
+    if (!authorId) {
+      return res.json({ status: 'none', conversationId: null });
+    }
+
+    // 2. Check request status between current user and author
+    const status = await getRequestStatus(req.userId!, authorId);
+    
+    // 3. Find the conversation ID (which matches the request ID)
+    let conversationId = null;
+    if (status !== 'none') {
+      const reqResult = await query(
+        `SELECT id FROM message_requests
+         WHERE (sender_id = $1 AND receiver_id = $2)
+            OR (sender_id = $2 AND receiver_id = $1)`,
+        [req.userId!, authorId]
+      );
+      if (reqResult.rows.length > 0) {
+        conversationId = reqResult.rows[0].id;
+      }
+    }
+
+    res.json({ status, conversationId });
+  } catch (err) {
+    next(err);
+  }
+});
+
 // POST /message-requests/:id/accept
 router.post('/:id/accept', requireAuth, async (req: Request, res: Response, next: NextFunction) => {
   try {
