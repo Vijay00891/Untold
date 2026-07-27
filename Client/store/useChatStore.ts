@@ -124,7 +124,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
       set((state) => ({
         messages: {
           ...state.messages,
-          [conversationId]: mapped.reverse() // Reverse to render top-to-bottom
+          [conversationId]: mapped // Keep newest first (latest at index 0)
         },
         loading: false
       }));
@@ -158,7 +158,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
       return {
         messages: {
           ...state.messages,
-          [message.conversationId]: [...convoMessages, message]
+          [message.conversationId]: [message, ...convoMessages] // Prepend to index 0 so it renders at the bottom of the inverted list
         }
       };
     });
