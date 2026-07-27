@@ -188,20 +188,18 @@ export async function declineRequest(requestId: string, receiverId: string): Pro
  */
 export async function listRequestsForUser(userId: string) {
   const incoming = await query(
-    `SELECT mr.*, u.display_name as sender_name,
-            CASE WHEN u.hide_avatar THEN NULL ELSE u.avatar_url END as sender_avatar
+    `SELECT mr.*, 'Anonymous' as sender_name,
+            NULL as sender_avatar
      FROM message_requests mr
-     JOIN users u ON mr.sender_id = u.id
      WHERE mr.receiver_id = $1
      ORDER BY mr.created_at DESC`,
     [userId]
   );
 
   const sent = await query(
-    `SELECT mr.*, u.display_name as receiver_name,
-            CASE WHEN u.hide_avatar THEN NULL ELSE u.avatar_url END as receiver_avatar
+    `SELECT mr.*, 'Anonymous' as receiver_name,
+            NULL as receiver_avatar
      FROM message_requests mr
-     JOIN users u ON mr.receiver_id = u.id
      WHERE mr.sender_id = $1
      ORDER BY mr.created_at DESC`,
     [userId]

@@ -128,12 +128,11 @@ export async function listConversations(userId: string): Promise<ConversationSum
     `SELECT
        mr.id as conversation_id,
        CASE WHEN mr.sender_id = $1 THEN mr.receiver_id ELSE mr.sender_id END as other_user_id,
-       u.display_name as other_user_name,
-       CASE WHEN u.hide_avatar THEN NULL ELSE u.avatar_url END as other_user_avatar,
+       'Anonymous' as other_user_name,
+       NULL as other_user_avatar,
        latest_msg.body_encrypted as last_message,
        latest_msg.created_at as last_message_at
      FROM message_requests mr
-     JOIN users u ON u.id = CASE WHEN mr.sender_id = $1 THEN mr.receiver_id ELSE mr.sender_id END
      LEFT JOIN LATERAL (
        SELECT body_encrypted, created_at
        FROM messages m
