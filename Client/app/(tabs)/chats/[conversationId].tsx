@@ -71,7 +71,12 @@ export default function ConversationScreen() {
       setChatState('pending_sent');
       setLoading(true);
       try {
-        if (authorId) {
+        if (postId) {
+          await apiClient.post('/message-requests', {
+            postId,
+            body: text,
+          });
+        } else if (authorId) {
           await apiClient.post('/message-requests', {
             receiverId: authorId,
             body: text,

@@ -3,6 +3,8 @@ import { requireAuth } from '../../middleware/auth.middleware.js';
 import { validateBody } from '../../middleware/validate.middleware.js';
 import { rateLimit } from '../../middleware/rateLimit.middleware.js';
 import { sendFirstMessageSchema } from './messageRequests.schemas.js';
+import { query } from '../../config/db.js';
+import { AppError } from '../../middleware/errorHandler.middleware.js';
 import {
   sendFirstMessage,
   getRequestStatus,
@@ -21,7 +23,21 @@ router.post(
   validateBody(sendFirstMessageSchema),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const request = await sendFirstMessage(req.userId!, req.body.receiverId, req.body.body);
+      let receiverId = req.body.receiverId;
+      
+      // Securely resolve receiverId from postId if it's missing (e.g. anonymous posts)
+      if (req.body.postId) {
+        const postResult = await query('SELECT author_id FROM posts WHERE id = $1', [req.body.postId]);
+        if (postResult.rows.length === 0) {
+          throw new AppError('Post not found', 404);
+        }
+        receiverId = postResult.rows[0].author_id;
+        if (!receiverId) {
+          throw new AppError('The author of this post no longer exists', 404);
+        }
+      }
+
+      const request = await sendFirstMessage(req.userId!, receiverId, req.body.body);
       res.status(201).json(request);
     } catch (err) {
       next(err);
