@@ -1,5 +1,5 @@
-import React, { useEffect } from 'react';
-import { View, FlatList, SafeAreaView, Text, TouchableOpacity, Image, RefreshControl } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { View, FlatList, SafeAreaView, Text, TouchableOpacity, Image, RefreshControl, Platform, UIManager, LayoutAnimation, Animated } from 'react-native';
 import { PostEntry } from '../../components/ui/PostEntry';
 import { IconButton } from '../../components/ui/IconButton';
 import { Bell } from 'lucide-react-native';
@@ -9,12 +9,67 @@ import * as WebBrowser from 'expo-web-browser';
 if (typeof window !== 'undefined') {
   WebBrowser.maybeCompleteAuthSession();
 }
+
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
+
 import { usePostStore } from '../../store/usePostStore';
 import { useChatStore } from '../../store/useChatStore';
 import { useNotificationStore } from '../../store/useNotificationStore';
 import { useAuthStore } from '../../store/useAuthStore';
 import { apiClient } from '../../api/apiClient';
-import { useState } from 'react';
+
+function PostSkeleton() {
+  const opacity = useRef(new Animated.Value(0.35)).current;
+
+  useEffect(() => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(opacity, {
+          toValue: 0.65,
+          duration: 900,
+          useNativeDriver: true,
+        }),
+        Animated.timing(opacity, {
+          toValue: 0.35,
+          duration: 900,
+          useNativeDriver: true,
+        }),
+      ])
+    ).start();
+  }, [opacity]);
+
+  return (
+    <Animated.View 
+      style={{ opacity }} 
+      className="mb-4 bg-card border border-border rounded-2xl p-5 shadow-xs"
+    >
+      {/* Avatar block */}
+      <View className="flex-row items-center mb-4">
+        <View className="w-9 h-9 rounded-full bg-border" />
+        <View className="ml-3 flex-1">
+          <View className="w-24 h-4 bg-border rounded-md" />
+          <View className="w-16 h-3 bg-border rounded-md mt-1.5" />
+        </View>
+      </View>
+
+      {/* Content blocks */}
+      <View className="w-full h-4 bg-border rounded-md mb-2" />
+      <View className="w-5/6 h-4 bg-border rounded-md mb-2" />
+      <View className="w-2/3 h-4 bg-border rounded-md mb-5" />
+
+      {/* Hairline Divider inside card */}
+      <View className="h-[1px] bg-border mb-3" />
+
+      {/* Footer skeleton */}
+      <View className="flex-row items-center justify-between">
+        <View className="w-12 h-5 bg-border rounded-md" />
+        <View className="w-24 h-5 bg-border rounded-md" />
+      </View>
+    </Animated.View>
+  );
+}
 
 export default function FeedScreen() {
   const router = useRouter();
@@ -80,6 +135,15 @@ export default function FeedScreen() {
     }
   }, [isAuthenticated]);
 
+  // Smooth layout animation on posts update (e.g. Socket adds, Liked, or pull-to-refresh completes)
+  useEffect(() => {
+    if (Platform.OS !== 'web') {
+      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    }
+  }, [posts]);
+
+  const showSkeleton = loading && posts.length === 0;
+
   return (
     <SafeAreaView style={{ flex: 1 }} className="flex-1 bg-background">
       <View className="px-4 h-14 flex-row justify-between items-center bg-navbar border-b border-border">
@@ -106,26 +170,32 @@ export default function FeedScreen() {
       </View>
       
       <FlatList
-        data={posts}
-        keyExtractor={(item) => item.id}
+        data={showSkeleton ? ([1, 2, 3] as any[]) : posts}
+        keyExtractor={(item, index) => showSkeleton ? `skeleton-${index}` : (item as any).id}
         refreshControl={
           <RefreshControl refreshing={loading} onRefresh={fetchFeed} colors={['#B3542E']} />
         }
-        renderItem={({ item }) => (
-          <PostEntry 
-            {...item} 
-            onLike={() => toggleLike(item.id)}
-            onRelate={() => handleRelatePress(item)}
-          />
-        )}
+        renderItem={({ item }) => {
+          if (showSkeleton) return <PostSkeleton />;
+          const post = item as any;
+          return (
+            <PostEntry 
+              {...post} 
+              onLike={() => toggleLike(post.id)}
+              onRelate={() => handleRelatePress(post)}
+            />
+          );
+        }}
         contentContainerStyle={{ padding: 16, paddingBottom: 80 }}
         showsVerticalScrollIndicator={false}
         ListEmptyComponent={
-          <View className="flex-1 items-center justify-center pt-20">
-            <Text className="font-serif italic text-inkMuted text-base text-center">
-              Nothing here yet. Be the first to share something.
-            </Text>
-          </View>
+          !showSkeleton ? (
+            <View className="flex-1 items-center justify-center pt-20">
+              <Text className="font-serif italic text-inkMuted text-base text-center">
+                Nothing here yet. Be the first to share something.
+              </Text>
+            </View>
+          ) : null
         }
       />
     </SafeAreaView>

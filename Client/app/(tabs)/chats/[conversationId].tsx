@@ -9,10 +9,21 @@ import { apiClient } from '../../../api/apiClient';
 import { useChatStore } from '../../../store/useChatStore';
 import { useAuthStore } from '../../../store/useAuthStore';
 import { useNotificationStore } from '../../../store/useNotificationStore';
+import * as Haptics from 'expo-haptics';
 
 type ChatState = 'no_message' | 'pending_sent' | 'pending_received' | 'accepted' | 'declined';
 
 const EMPTY_MESSAGES = [] as any[];
+
+const triggerHaptic = async (style: Haptics.ImpactFeedbackStyle = Haptics.ImpactFeedbackStyle.Light) => {
+  try {
+    if (Platform.OS !== 'web') {
+      await Haptics.impactAsync(style);
+    }
+  } catch (e) {
+    // Catch silent errors on unsupported devices
+  }
+};
 
 export default function ConversationScreen() {
   const { conversationId, postId, postContent, authorName, authorId, isAnonymous: isAnonymousParam, isRequestPending, firstMessage } = useLocalSearchParams<{
@@ -69,6 +80,7 @@ export default function ConversationScreen() {
     
     const text = message.trim();
     setMessage('');
+    triggerHaptic(Haptics.ImpactFeedbackStyle.Light);
     
     if (chatState === 'no_message') {
       setChatState('pending_sent');
@@ -97,6 +109,7 @@ export default function ConversationScreen() {
 
   const handleAccept = async () => {
     setLoading(true);
+    triggerHaptic(Haptics.ImpactFeedbackStyle.Medium);
     try {
       if (conversationId && !conversationId.startsWith('new-')) {
         await apiClient.post(`/message-requests/${conversationId}/accept`, {});
