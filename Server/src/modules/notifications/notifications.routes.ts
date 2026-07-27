@@ -1,5 +1,6 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { requireAuth } from '../../middleware/auth.middleware.js';
+import { query } from '../../config/db.js';
 import {
   getNotifications,
   markAsRead,
@@ -33,6 +34,28 @@ router.put('/read-all', requireAuth, async (req: Request, res: Response, next: N
   try {
     await markAllAsRead(req.userId!);
     res.json({ message: 'All notifications marked as read' });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// PATCH /api/notifications/read-conversation/:conversationId
+router.patch('/read-conversation/:conversationId', requireAuth, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const conversationId = req.params.conversationId;
+    await query(
+      `UPDATE notifications
+       SET unread = false
+       WHERE user_id = $1
+         AND unread = true
+         AND (
+           (type = 'message' AND data->>'conversationId' = $2) OR
+           (type = 'accept' AND data->>'conversationId' = $2) OR
+           (type = 'request' AND data->>'requestId' = $2)
+         )`,
+      [req.userId!, conversationId]
+    );
+    res.json({ success: true });
   } catch (err) {
     next(err);
   }

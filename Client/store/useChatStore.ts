@@ -77,6 +77,20 @@ export const useChatStore = create<ChatState>((set, get) => ({
     });
 
     socket.on('notification:new', (notification: any) => {
+      const activeConvoId = get().activeConversationId;
+      const isConvoNotification = 
+        activeConvoId && (
+          (notification.type === 'message' && notification.data?.conversationId === activeConvoId) ||
+          (notification.type === 'accept' && notification.data?.conversationId === activeConvoId) ||
+          (notification.type === 'request' && notification.data?.requestId === activeConvoId)
+        );
+
+      if (isConvoNotification) {
+        // Mark as read immediately on backend and set unread to false locally
+        apiClient.patch(`/notifications/read-conversation/${activeConvoId}`, {}).catch(() => {});
+        notification.unread = false;
+      }
+
       useNotificationStore.getState().addNotification(notification);
     });
 

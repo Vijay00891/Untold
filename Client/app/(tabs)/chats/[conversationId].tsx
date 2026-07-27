@@ -8,6 +8,7 @@ import { Button } from '../../../components/ui/Button';
 import { apiClient } from '../../../api/apiClient';
 import { useChatStore } from '../../../store/useChatStore';
 import { useAuthStore } from '../../../store/useAuthStore';
+import { useNotificationStore } from '../../../store/useNotificationStore';
 
 type ChatState = 'no_message' | 'pending_sent' | 'pending_received' | 'accepted' | 'declined';
 
@@ -38,6 +39,7 @@ export default function ConversationScreen() {
   const sendMessage = useChatStore((state) => state.sendMessage);
   const setActiveConversation = useChatStore((state) => state.setActiveConversation);
   const loadingMessages = useChatStore((state) => state.loading);
+  const markConversationAsRead = useNotificationStore((state) => state.markConversationAsRead);
 
   const initialChatState = () => {
     if (isNewConversation) return 'no_message';
@@ -54,6 +56,7 @@ export default function ConversationScreen() {
     if (!isNewConversation && conversationId) {
       setActiveConversation(conversationId);
       fetchMessages(conversationId);
+      markConversationAsRead(conversationId);
     }
 
     return () => {
@@ -97,6 +100,7 @@ export default function ConversationScreen() {
     try {
       if (conversationId && !conversationId.startsWith('new-')) {
         await apiClient.post(`/message-requests/${conversationId}/accept`, {});
+        markConversationAsRead(conversationId);
       }
       setChatState('accepted');
       // Fetch messages so we load the accepted chat logs

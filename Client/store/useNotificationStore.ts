@@ -19,6 +19,7 @@ interface NotificationState {
   fetchNotifications: () => Promise<void>;
   markAsRead: (id: string) => Promise<void>;
   markAllAsRead: () => Promise<void>;
+  markConversationAsRead: (conversationId: string) => Promise<void>;
   addNotification: (notification: Notification) => void;
 }
 
@@ -63,6 +64,27 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
       });
     } catch (err) {
       console.warn('Mark all notifications as read error:', err);
+    }
+  },
+
+  markConversationAsRead: async (conversationId) => {
+    try {
+      await apiClient.patch(`/notifications/read-conversation/${conversationId}`, {});
+      set((state) => {
+        const updated = state.notifications.map((n) => {
+          const isMatch = (n.type === 'message' && n.data?.conversationId === conversationId) ||
+                          (n.type === 'accept' && n.data?.conversationId === conversationId) ||
+                          (n.type === 'request' && n.data?.requestId === conversationId);
+          if (isMatch && n.unread) {
+            return { ...n, unread: false };
+          }
+          return n;
+        });
+        const unreadCount = updated.filter((n) => n.unread).length;
+        return { notifications: updated, unreadCount };
+      });
+    } catch (err) {
+      console.warn('Mark conversation notifications as read error:', err);
     }
   },
 
