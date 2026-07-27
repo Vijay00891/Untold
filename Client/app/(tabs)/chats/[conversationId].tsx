@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, SafeAreaView, TextInput, KeyboardAvoidingView, Platform, FlatList, ActivityIndicator } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ArrowLeft, Send } from 'lucide-react-native';
@@ -6,57 +6,69 @@ import { Avatar } from '../../../components/ui/Avatar';
 import { IconButton } from '../../../components/ui/IconButton';
 import { Button } from '../../../components/ui/Button';
 import { apiClient } from '../../../api/apiClient';
+import { useChatStore } from '../../../store/useChatStore';
+import { useAuthStore } from '../../../store/useAuthStore';
 
 type ChatState = 'no_message' | 'pending_sent' | 'pending_received' | 'accepted' | 'declined';
 
-const EXISTING_MESSAGES = [
-  { id: '1', body: 'I completely relate to what you posted...', isMine: false, isAnonymous: true },
-  { id: '2', body: 'Thank you, it means a lot to know I am not alone.', isMine: true, isAnonymous: false }
-];
-
 export default function ConversationScreen() {
-  const { conversationId, postId, postContent, authorName, authorId, isAnonymous: isAnonymousParam } = useLocalSearchParams<{
+  const { conversationId, postId, postContent, authorName, authorId, isAnonymous: isAnonymousParam, isRequestPending, firstMessage } = useLocalSearchParams<{
     conversationId: string;
     postId?: string;
     postContent?: string;
     authorName?: string;
     authorId?: string;
     isAnonymous?: string;
+    isRequestPending?: string;
+    firstMessage?: string;
   }>();
   const router = useRouter();
 
-  // If we arrived here via "Relate to this", start in no_message state
-  // If it's an existing conversation, start in the appropriate state
-  const isNewConversation = !!postId;
+  const isNewConversation = !conversationId || conversationId.startsWith('new-');
   const isAnonymous = isAnonymousParam === 'true';
   const displayName = isAnonymous ? 'Anonymous' : (authorName || 'Anonymous');
 
-  const [chatState, setChatState] = useState<ChatState>(isNewConversation ? 'no_message' : 'pending_received');
+  const currentUser = useAuthStore((state) => state.user);
+
+  // Zustand chat store hook
+  const activeMessages = useChatStore((state) => state.messages[conversationId] || []);
+  const fetchMessages = useChatStore((state) => state.fetchMessages);
+  const sendMessage = useChatStore((state) => state.sendMessage);
+  const setActiveConversation = useChatStore((state) => state.setActiveConversation);
+  const loadingMessages = useChatStore((state) => state.loading);
+
+  const initialChatState = () => {
+    if (isNewConversation) return 'no_message';
+    if (isRequestPending === 'true') return 'pending_received';
+    return 'accepted';
+  };
+
+  const [chatState, setChatState] = useState<ChatState>(initialChatState());
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
-  const [sentMessages, setSentMessages] = useState<Array<{ id: string; body: string; isMine: boolean; isAnonymous: boolean }>>([]);
 
-  const messages = isNewConversation ? sentMessages : EXISTING_MESSAGES;
+  // Manage socket rooms and fetch initial messages on mount
+  useEffect(() => {
+    if (!isNewConversation && conversationId) {
+      setActiveConversation(conversationId);
+      fetchMessages(conversationId);
+    }
+
+    return () => {
+      setActiveConversation(null);
+    };
+  }, [conversationId, isNewConversation]);
 
   const handleSend = async () => {
     if (!message.trim() || loading) return;
     
     const text = message.trim();
-    const newMsg = {
-      id: Date.now().toString(),
-      body: text,
-      isMine: true,
-      isAnonymous: false,
-    };
-    
-    setSentMessages(prev => [...prev, newMsg]);
     setMessage('');
     
     if (chatState === 'no_message') {
       setChatState('pending_sent');
       setLoading(true);
       try {
-        // Wire up backend POST /message-requests endpoint if authorId exists
         if (authorId) {
           await apiClient.post('/message-requests', {
             receiverId: authorId,
@@ -64,10 +76,12 @@ export default function ConversationScreen() {
           });
         }
       } catch (err) {
-        console.warn('API sync warning (backend local mode):', err);
+        console.warn('API sync warning:', err);
       } finally {
         setLoading(false);
       }
+    } else if (chatState === 'accepted') {
+      await sendMessage(conversationId, text);
     }
   };
 
@@ -78,9 +92,11 @@ export default function ConversationScreen() {
         await apiClient.post(`/message-requests/${conversationId}/accept`, {});
       }
       setChatState('accepted');
+      // Fetch messages so we load the accepted chat logs
+      fetchMessages(conversationId);
     } catch (err) {
       console.warn('Accept request error:', err);
-      setChatState('accepted'); // UI optimistic update
+      setChatState('accepted'); 
     } finally {
       setLoading(false);
     }
@@ -95,7 +111,7 @@ export default function ConversationScreen() {
       setChatState('declined');
     } catch (err) {
       console.warn('Decline request error:', err);
-      setChatState('declined'); // UI optimistic update
+      setChatState('declined'); 
     } finally {
       setLoading(false);
     }
@@ -122,22 +138,46 @@ export default function ConversationScreen() {
   };
 
   const renderMessageList = () => {
-    if (messages.length === 0) return null;
-    return (
-      <FlatList
-        data={messages}
-        keyExtractor={item => item.id}
-        inverted
-        contentContainerStyle={{ padding: 16, flexDirection: 'column-reverse' }}
-        renderItem={({ item }) => (
-          <View className={`mb-3 max-w-[75%] rounded-2xl px-4 py-3 ${
-            item.isMine ? 'bg-accent self-end' : 'bg-card border border-border self-start'
-          }`}>
-            <Text className={`font-sans text-base leading-relaxed ${item.isMine ? 'text-white' : 'text-ink'} ${!item.isMine && item.isAnonymous ? 'font-mono text-sm' : ''}`}>
-              {item.body}
+    if (chatState === 'pending_received' && firstMessage) {
+      // In pending state show incoming request message preview
+      return (
+        <View className="flex-1 p-4 justify-center items-center">
+          <View className="max-w-[85%] bg-card border border-border rounded-2xl p-4 shadow-xs">
+            <Text className="font-sans text-xs text-inkMuted mb-2">Their message request body:</Text>
+            <Text className="font-sans text-base text-ink leading-relaxed font-mono">
+              {firstMessage}
             </Text>
           </View>
-        )}
+        </View>
+      );
+    }
+
+    if (loadingMessages && activeMessages.length === 0) {
+      return (
+        <View className="flex-grow justify-center items-center">
+          <ActivityIndicator size="small" color="#B3542E" />
+        </View>
+      );
+    }
+
+    return (
+      <FlatList
+        data={activeMessages}
+        keyExtractor={item => item.id}
+        inverted
+        contentContainerStyle={{ padding: 16 }}
+        renderItem={({ item }) => {
+          const isMine = item.senderId === currentUser?.id;
+          return (
+            <View className={`mb-3 max-w-[75%] rounded-2xl px-4 py-3 ${
+              isMine ? 'bg-accent self-end' : 'bg-card border border-border self-start'
+            }`}>
+              <Text className={`font-sans text-base leading-relaxed ${isMine ? 'text-white' : 'text-ink'}`}>
+                {item.body}
+              </Text>
+            </View>
+          );
+        }}
       />
     );
   };

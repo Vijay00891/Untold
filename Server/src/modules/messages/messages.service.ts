@@ -1,6 +1,7 @@
 import { query } from '../../config/db.js';
 import { AppError } from '../../middleware/errorHandler.middleware.js';
 import { createNotification } from '../notifications/notifications.service.js';
+import { emitNewMessage } from '../../sockets/chat.socket.js';
 
 export interface Message {
   id: string;
@@ -56,6 +57,13 @@ export async function sendMessage(
   );
 
   const message = result.rows[0] as Message;
+
+  // Emit to socket room for real-time delivery
+  try {
+    emitNewMessage(conversationId, message);
+  } catch (err) {
+    // Log but don't fail the request
+  }
 
   // Trigger notification for the receiver
   try {
