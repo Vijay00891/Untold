@@ -1,7 +1,12 @@
 import { Tabs } from 'expo-router';
 import { Home, PlusCircle, MessageSquare, User } from 'lucide-react-native';
+import { View } from 'react-native';
+import { useNotificationStore } from '../../store/useNotificationStore';
 
 export default function TabLayout() {
+  const notifications = useNotificationStore((state) => state.notifications);
+  const hasUnreadChats = notifications.some((n) => n.unread && ['message', 'request', 'accept'].includes(n.type));
+
   return (
     <Tabs
       screenOptions={{
@@ -44,7 +49,26 @@ export default function TabLayout() {
         name="chats/index"
         options={{
           title: 'Chats',
-          tabBarIcon: ({ color }) => <MessageSquare color={color} size={22} strokeWidth={1.5} />,
+          tabBarIcon: ({ color }) => (
+            <View style={{ position: 'relative' }}>
+              <MessageSquare color={color} size={22} strokeWidth={1.5} />
+              {hasUnreadChats && (
+                <View 
+                  style={{
+                    position: 'absolute',
+                    right: -4,
+                    top: -2,
+                    width: 10,
+                    height: 10,
+                    backgroundColor: '#B3542E', // bg-seal / accent color
+                    borderRadius: 5,
+                    borderWidth: 2,
+                    borderColor: '#FBF9F5', // background color
+                  }}
+                />
+              )}
+            </View>
+          ),
         }}
       />
       <Tabs.Screen
