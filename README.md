@@ -67,7 +67,5 @@ No phone numbers, no IP logging, no location data, no device fingerprinting.
 - Anonymous posts render in a distinct monospace typeface as a visual (not just iconographic) signal of anonymity.
 - Full design tokens and component specs live in `/docs`.
 
-## Status
 
-Actively in development. Current focus: core screens (feed, post creation, chat, profile) and the message-request flow.
 
